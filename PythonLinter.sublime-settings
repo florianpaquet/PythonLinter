@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "max_line_length": 79,
+    "multiline_errors": true,
+    "ignore": []
+}
