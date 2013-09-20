@@ -136,7 +136,9 @@ class PythonLinter(sublime_plugin.EventListener):
 
             if filename is not None and view.match_selector(0, 'source.python'):
                 self.view = view
-                self._run_pep8(filename)
-                self._run_pyflakes(code, filename)
+                if self.settings.get('pep8', True):
+                    self._run_pep8(filename)
+                if self.settings.get('pyflakes', True):
+                    self._run_pyflakes(code, filename)
                 self._merge_errors()
                 self._display_errors()
