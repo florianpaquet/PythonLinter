@@ -5,13 +5,10 @@ import sublime
 import sublime_plugin
 from collections import namedtuple
 
-try:
-    from .contrib import pep8
-    from .contrib.pyflakes.api import check
-except ImportError:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "contrib"))
-    from .contrib import pep8
-    from .contrib.pyflakes.api import check
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'contrib'))
+
+from .contrib import pep8
+from .contrib.pyflakes.api import check
 
 
 Error = namedtuple('Error', ['code', 'line', 'offset', 'text'])
