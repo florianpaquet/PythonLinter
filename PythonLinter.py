@@ -69,6 +69,22 @@ class PythonLinter(sublime_plugin.EventListener):
             self.view.sel().add(point)
             self.view.show_at_center(point)
 
+    def _get_description(self, error, text):
+        """
+        Returns text offset and formatted description
+        """
+        located_description = self.description_format.format(
+            line=error.line,
+            column=error.offset,
+            text='{text}'
+        )
+        text_offset = located_description.find('{text}')
+        description = located_description.format(
+            text=text.strip()
+        )
+
+        return text_offset, description
+
     def _format_error(self, error):
         """
         Returns formatted error
@@ -84,22 +100,20 @@ class PythonLinter(sublime_plugin.EventListener):
             base_error = error.text
 
         if self.settings.get('show_error_description', True):
-            description = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset)))
+            text = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset)))
+            text_offset, description = self._get_description(error, text)
+
             error_block = [
                 base_error,
-                self.description_format.format(
-                    line=error.line,
-                    column=error.offset,
-                    text=description.strip()
-                )
+                description
             ]
 
             # Add cursor if activated
             if self.settings.get('show_error_offset_cursor', True):
                 # Cursor, even if empty, is required to avoid Sublime Text errors
-                if description.strip():
-                    leading_spaces = len(description) - len(description.lstrip())
-                    cursor = '^'.rjust(error.offset - leading_spaces + 1)
+                if text.strip() and text_offset != -1:
+                    leading_spaces = len(text) - len(text.lstrip())
+                    cursor = '^'.rjust(error.offset - leading_spaces + text_offset + 1)
                 else:
                     cursor = ''
 
