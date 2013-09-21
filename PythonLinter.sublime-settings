@@ -1,5 +1,7 @@
 {
     "active": true,
+    "pep8": true,
+    "pyflakes": true,
     "error_format": "{code} : {text}",
     "description_format": "L{line}:C{column} {text}",
     "max_line_length": 79,

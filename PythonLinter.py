@@ -104,7 +104,7 @@ class PythonLinter(sublime_plugin.EventListener):
 
         for error_list in error_lists:
             for error in error_list:
-                if not any(error.code.startswith(ignore) for ignore in ignore_list):
+                if error.code is None or not any(error.code.startswith(ignore) for ignore in ignore_list):
                     self.error_list.append(error)
 
     def _display_errors(self):
@@ -158,7 +158,10 @@ class PythonLinter(sublime_plugin.EventListener):
                 self.error_format = self.settings.get('error_format', '{code} : {text}')
                 self.description_format = self.settings.get('description_format', 'L{line}:C{column} {text}')
 
-                self._run_pep8(filename)
-                self._run_pyflakes(code)
+                if self.settings.get('pep8', True):
+                    self._run_pep8(filename)
+                if self.settings.get('pyflakes', True):
+                    self._run_pyflakes(code)
+
                 self._merge_errors()
                 self._display_errors()
