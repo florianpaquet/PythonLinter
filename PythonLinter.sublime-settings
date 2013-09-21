@@ -5,6 +5,7 @@
     "error_format": "{code} : {text}",
     "description_format": "L{line}:C{column} {text}",
     "max_line_length": 79,
-    "multiline_errors": true,
+    "show_error_description": true,
+    "show_error_offset_cursor": true,
     "ignore": []
 }

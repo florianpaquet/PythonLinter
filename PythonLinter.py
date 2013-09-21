@@ -83,13 +83,29 @@ class PythonLinter(sublime_plugin.EventListener):
         else:
             base_error = error.text
 
-        if self.settings.get('multiline_errors', False):
-            description = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset))).strip()
-            return [base_error, self.description_format.format(
-                line=error.line,
-                column=error.offset,
-                text=description
-            )]
+        if self.settings.get('show_error_description', True):
+            description = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset)))
+            error_block = [
+                base_error,
+                self.description_format.format(
+                    line=error.line,
+                    column=error.offset,
+                    text=description.strip()
+                )
+            ]
+
+            # Add cursor if activated
+            if self.settings.get('show_error_offset_cursor', True):
+                # Cursor, even if empty, is required to avoid Sublime Text errors
+                if description.strip():
+                    leading_spaces = len(description) - len(description.lstrip())
+                    cursor = '^'.rjust(error.offset - leading_spaces + 1)
+                else:
+                    cursor = ''
+
+                error_block.append(cursor)
+
+            return error_block
         else:
             return base_error
 
@@ -113,7 +129,8 @@ class PythonLinter(sublime_plugin.EventListener):
         """
         self.view.window().show_quick_panel(
             items=[self._format_error(error) for error in self.error_list],
-            on_select=self._on_select
+            on_select=self._on_select,
+            flags=sublime.MONOSPACE_FONT
         )
 
     def _run_pep8(self, filename):
