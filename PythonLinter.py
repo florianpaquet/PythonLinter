@@ -1,9 +1,15 @@
 # -*- coding:utf-8 -*-
+import os
+import sys
 import sublime
 import sublime_plugin
 from collections import namedtuple
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "contrib"))
+
 from .contrib import pep8
 from .contrib.pyflakes.api import check
+
 
 Error = namedtuple('Error', ['code', 'line', 'offset', 'text'])
 
@@ -28,14 +34,13 @@ class PyFlakesReporter(object):
         self.error_list = []
 
     def unexpectedError(self, filename, msg):
-        self.error_list.append(Error('ERROR', 0, 0, msg))
+        self.error_list.append(Error(None, 0, 0, msg.capitalize()))
 
     def syntaxError(self, filename, msg, lineno, offset, text):
-        self.error_list.append(Error('ERROR', lineno, offset, msg))
+        self.error_list.append(Error(None, lineno, offset, msg.capitalize()))
 
     def flake(self, error):
-        code = error.flake8_msg.split(' ', 1)[0]
-        self.error_list.append(Error(code, error.lineno, error.col, error.message % error.message_args))
+        self.error_list.append(Error(None, error.lineno, error.col, (error.message % error.message_args).capitalize()))
 
 
 # ---- COMMANDS
@@ -48,6 +53,8 @@ class PythonLinter(sublime_plugin.EventListener):
         self.view = None
         self.settings = None
         self.error_list = []
+        self.error_format = ''
+        self.description_format = ''
         self.pep8_error_list = []
         self.pyflakes_error_list = []
 
@@ -67,10 +74,22 @@ class PythonLinter(sublime_plugin.EventListener):
         Returns formatted error
         """
         assert isinstance(error, Error)
-        base_error = '%s : %s' % (error.code, error.text)
+
+        if error.code is not None:
+            base_error = self.error_format.format(
+                code=error.code,
+                text=error.text
+            )
+        else:
+            base_error = error.text
 
         if self.settings.get('multiline_errors', False):
-            return [base_error, 'Line %d at character %d' % (error.line, error.offset)]
+            description = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset))).strip()
+            return [base_error, self.description_format.format(
+                line=error.line,
+                column=error.offset,
+                text=description
+            )]
         else:
             return base_error
 
@@ -112,14 +131,14 @@ class PythonLinter(sublime_plugin.EventListener):
         # Store errors and display them
         self.pep8_error_list = pep8_checker.report.error_list
 
-    def _run_pyflakes(self, code, filename):
+    def _run_pyflakes(self, code):
         """
         Runs PyFlakes checker on the code
         """
         reporter = PyFlakesReporter()
         check(
             codeString=code,
-            filename=filename,
+            filename='',
             reporter=reporter
         )
         self.pyflakes_error_list = reporter.error_list
@@ -136,7 +155,10 @@ class PythonLinter(sublime_plugin.EventListener):
 
             if filename is not None and view.match_selector(0, 'source.python'):
                 self.view = view
+                self.error_format = self.settings.get('error_format', '{code} : {text}')
+                self.description_format = self.settings.get('description_format', 'L{line}:C{column} {text}')
+
                 self._run_pep8(filename)
-                self._run_pyflakes(code, filename)
+                self._run_pyflakes(code)
                 self._merge_errors()
                 self._display_errors()
