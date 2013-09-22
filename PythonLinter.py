@@ -8,6 +8,7 @@ from collections import namedtuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'contrib'))
 
 from .contrib import pep8
+from .contrib.autopep8 import fix_string
 from .contrib.pyflakes.api import check
 
 
@@ -16,13 +17,13 @@ Error = namedtuple('Error', ['code', 'line', 'offset', 'text'])
 
 # ---- REPORTERS
 
-class Pep8Report(pep8.BaseReport):
+class Pep8Reporter(pep8.BaseReport):
     def __init__(self, options):
-        super(Pep8Report, self).__init__(options)
+        super(Pep8Reporter, self).__init__(options)
         self.error_list = []
 
     def error(self, line_number, offset, text, check):
-        code = super(Pep8Report, self).error(line_number, offset, text, check)
+        code = super(Pep8Reporter, self).error(line_number, offset, text, check)
         if code:
             # Extract error description part from "EXXX error description" and capitalize the first word
             raw_text = text.split(' ', 1)[1].strip().capitalize()
@@ -42,15 +43,15 @@ class PyFlakesReporter(object):
     def flake(self, error):
         self.error_list.append(Error(None, error.lineno, error.col, (error.message % error.message_args).capitalize()))
 
-
 # ---- COMMANDS
 
 
-class PythonLinter(sublime_plugin.EventListener):
-
+class PythonLintCommand(sublime_plugin.TextCommand):
+    """
+    Shows PEP8 and PyFlakes errors on the current file
+    """
     def __init__(self, *args, **kwargs):
-        super(PythonLinter, self).__init__(*args, **kwargs)
-        self.view = None
+        super(PythonLintCommand, self).__init__(*args, **kwargs)
         self.settings = None
         self.error_list = []
         self.error_format = ''
@@ -169,7 +170,7 @@ class PythonLinter(sublime_plugin.EventListener):
             filename=filename,
             select=['E', 'W'],
             max_line_length=self.settings.get('max_line_length', 79),
-            reporter=Pep8Report
+            reporter=Pep8Reporter
         )
         pep8_checker.check_all()
 
@@ -188,25 +189,59 @@ class PythonLinter(sublime_plugin.EventListener):
         )
         self.pyflakes_error_list = reporter.error_list
 
+    def run(self, edit):
+        """
+        Check code
+        """
+        self.settings = sublime.load_settings('PythonLinter.sublime-settings')
+
+        filename = self.view.file_name()
+        code = self.view.substr(sublime.Region(0, self.view.size()))
+
+        if filename is not None and self.view.match_selector(0, 'source.python'):
+            self.error_format = self.settings.get('error_format', '{code} : {text}')
+            self.description_format = self.settings.get('description_format', 'L{line}:C{column} {text}')
+
+            if self.settings.get('pep8', True):
+                self._run_pep8(filename)
+            if self.settings.get('pyflakes', True):
+                self._run_pyflakes(code)
+
+            self._merge_errors()
+            self._display_errors()
+
+
+class AutoPep8Command(sublime_plugin.TextCommand):
+    def run(self, edit):
+        """
+        Auto PEP8 the current file
+        """
+        if self.view.match_selector(0, 'source.python'):
+            full_region = sublime.Region(0, self.view.size())
+            input_code = self.view.substr(full_region)
+            fixed_code = fix_string(input_code)
+            self.view.replace(edit, full_region, fixed_code)
+
+# ---- LISTENERS
+
+
+class PythonFileSaveListener(sublime_plugin.EventListener):
+
+    def __init__(self, *args, **kwargs):
+        super(PythonFileSaveListener, self).__init__(*args, **kwargs)
+        self.view = None
+        self.settings = None
+        self.error_list = []
+        self.error_format = ''
+        self.description_format = ''
+        self.pep8_error_list = []
+        self.pyflakes_error_list = []
+
     def on_post_save_async(self, view):
         """
         Runs checkers on post save
         """
-        self.settings = sublime.load_settings('PythonLinter.sublime-settings')
+        settings = sublime.load_settings('PythonLinter.sublime-settings')
 
-        if self.settings.get('active', True):
-            filename = view.file_name()
-            code = view.substr(sublime.Region(0, view.size()))
-
-            if filename is not None and view.match_selector(0, 'source.python'):
-                self.view = view
-                self.error_format = self.settings.get('error_format', '{code} : {text}')
-                self.description_format = self.settings.get('description_format', 'L{line}:C{column} {text}')
-
-                if self.settings.get('pep8', True):
-                    self._run_pep8(filename)
-                if self.settings.get('pyflakes', True):
-                    self._run_pyflakes(code)
-
-                self._merge_errors()
-                self._display_errors()
+        if settings.get('active', True):
+            view.run_command('python_lint')

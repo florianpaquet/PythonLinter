@@ -1,0 +1,10 @@
+[
+    {
+        "command": "python_lint",
+        "caption": "PythonLinter: Check code"
+    },
+    {
+        "command": "auto_pep8",
+        "caption": "PythonLinter: Auto PEP8"
+    },
+]
