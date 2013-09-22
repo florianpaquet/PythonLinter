@@ -137,10 +137,24 @@ class PythonLinter(sublime_plugin.EventListener):
                 if error.code is None or not any(error.code.startswith(ignore) for ignore in ignore_list):
                     self.error_list.append(error)
 
+    def _underline_errors(self):
+        """
+        Shows an underline on errors
+        """
+        self.view.add_regions(
+            key='python_linter_errors',
+            scope='comment',
+            regions=[self.view.line(self.view.text_point(error.line - 1, error.offset)) for error in self.error_list],
+            flags=sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_STIPPLED_UNDERLINE
+        )
+
     def _display_errors(self):
         """
         Displays errors on Sublime Text
         """
+        if self.settings.get('underline_errors', True):
+            self._underline_errors()
+
         self.view.window().show_quick_panel(
             items=[self._format_error(error) for error in self.error_list],
             on_select=self._on_select,
