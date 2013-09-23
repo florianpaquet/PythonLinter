@@ -15,6 +15,10 @@ from .contrib.pyflakes.api import check
 Error = namedtuple('Error', ['code', 'line', 'offset', 'text'])
 
 
+def upper_first(s):
+    return s[:1].upper() + s[1:]
+
+
 # ---- REPORTERS
 
 class Pep8Reporter(pep8.BaseReport):
@@ -26,7 +30,7 @@ class Pep8Reporter(pep8.BaseReport):
         code = super(Pep8Reporter, self).error(line_number, offset, text, check)
         if code:
             # Extract error description part from "EXXX error description" and capitalize the first word
-            raw_text = text.split(' ', 1)[1].strip().capitalize()
+            raw_text = upper_first(text.split(' ', 1)[1].strip())
             self.error_list.append(Error(code, self.line_offset + line_number, offset, raw_text))
 
 
@@ -35,13 +39,13 @@ class PyFlakesReporter(object):
         self.error_list = []
 
     def unexpectedError(self, filename, msg):
-        self.error_list.append(Error(None, 0, 0, msg.capitalize()))
+        self.error_list.append(Error(None, 0, 0, upper_first(msg)))
 
     def syntaxError(self, filename, msg, lineno, offset, text):
-        self.error_list.append(Error(None, lineno, offset, msg.capitalize()))
+        self.error_list.append(Error(None, lineno, offset, upper_first(msg)))
 
     def flake(self, error):
-        self.error_list.append(Error(None, error.lineno, error.col, (error.message % error.message_args).capitalize()))
+        self.error_list.append(Error(None, error.lineno, error.col, upper_first(error.message % error.message_args)))
 
 # ---- COMMANDS
 
