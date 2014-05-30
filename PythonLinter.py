@@ -8,7 +8,7 @@ from collections import namedtuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'contrib'))
 
 from .contrib import pep8
-from .contrib.autopep8 import fix_string
+from .contrib.autopep8 import fix_code
 from .contrib.pyflakes.api import check
 
 
@@ -198,7 +198,6 @@ class PythonLintCommand(sublime_plugin.TextCommand):
         Check code
         """
         self.settings = sublime.load_settings('PythonLinter.sublime-settings')
-
         filename = self.view.file_name()
         code = self.view.substr(sublime.Region(0, self.view.size()))
 
@@ -223,7 +222,7 @@ class AutoPep8Command(sublime_plugin.TextCommand):
         if self.view.match_selector(0, 'source.python'):
             full_region = sublime.Region(0, self.view.size())
             input_code = self.view.substr(full_region)
-            fixed_code = fix_string(input_code)
+            fixed_code = fix_code(input_code)
             self.view.replace(edit, full_region, fixed_code)
 
 # ---- LISTENERS
