@@ -8,7 +8,7 @@ from collections import namedtuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'contrib'))
 
 from .contrib import pep8
-from .contrib.autopep8 import fix_string
+from .contrib.autopep8 import fix_code
 from .contrib.pyflakes.api import check
 
 
@@ -27,11 +27,20 @@ class Pep8Reporter(pep8.BaseReport):
         self.error_list = []
 
     def error(self, line_number, offset, text, check):
-        code = super(Pep8Reporter, self).error(line_number, offset, text, check)
+        code = super(Pep8Reporter, self).error(
+            line_number, offset, text, check)
         if code:
-            # Extract error description part from "EXXX error description" and capitalize the first word
+            # Extract error description part from "EXXX error description"
+            # and capitalize the first word
             raw_text = upper_first(text.split(' ', 1)[1].strip())
-            self.error_list.append(Error(code, self.line_offset + line_number, offset, raw_text))
+            self.error_list.append(
+                Error(
+                    code,
+                    self.line_offset + line_number,
+                    offset,
+                    raw_text
+                )
+            )
 
 
 class PyFlakesReporter(object):
@@ -45,7 +54,16 @@ class PyFlakesReporter(object):
         self.error_list.append(Error(None, lineno, offset, upper_first(msg)))
 
     def flake(self, error):
-        self.error_list.append(Error(None, error.lineno, error.col, upper_first(error.message % error.message_args)))
+        self.error_list.append(
+            Error(
+                None,
+                error.lineno,
+                error.col,
+                upper_first(
+                    error.message % error.message_args
+                )
+            )
+        )
 
 # ---- COMMANDS
 
@@ -105,7 +123,11 @@ class PythonLintCommand(sublime_plugin.TextCommand):
             base_error = error.text
 
         if self.settings.get('show_error_description', True):
-            text = self.view.substr(self.view.line(self.view.text_point(error.line - 1, error.offset)))
+            text = self.view.substr(
+                self.view.line(
+                    self.view.text_point(error.line - 1, error.offset)
+                )
+            )
             text_offset, description = self._get_description(error, text)
 
             error_block = [
@@ -114,11 +136,12 @@ class PythonLintCommand(sublime_plugin.TextCommand):
             ]
 
             # Add cursor if activated
+            # Cursor, even if empty, is required to avoid Sublime Text errors
             if self.settings.get('show_error_offset_cursor', True):
-                # Cursor, even if empty, is required to avoid Sublime Text errors
                 if text.strip() and text_offset != -1:
                     leading_spaces = len(text) - len(text.lstrip())
-                    cursor = '^'.rjust(error.offset - leading_spaces + text_offset + 1)
+                    cursor = '^'.rjust(
+                        error.offset - leading_spaces + text_offset + 1)
                 else:
                     cursor = ''
 
@@ -139,18 +162,26 @@ class PythonLintCommand(sublime_plugin.TextCommand):
 
         for error_list in error_lists:
             for error in error_list:
-                if error.code is None or not any(error.code.startswith(ignore) for ignore in ignore_list):
+                ignored = any(
+                    error.code.startswith(ignore) for ignore in ignore_list)
+                if error.code is None or not ignored:
                     self.error_list.append(error)
 
     def _underline_errors(self):
         """
         Shows an underline on errors
         """
+        regions = [
+            self.view.line(
+                self.view.text_point(error.line - 1, error.offset)
+            ) for error in self.error_list]
+        flags = sublime.DRAW_NO_FILL | \
+            sublime.DRAW_NO_OUTLINE | sublime.DRAW_STIPPLED_UNDERLINE
         self.view.add_regions(
             key='python_linter_errors',
             scope='comment',
-            regions=[self.view.line(self.view.text_point(error.line - 1, error.offset)) for error in self.error_list],
-            flags=sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_STIPPLED_UNDERLINE
+            regions=regions,
+            flags=flags
         )
 
     def _display_errors(self):
@@ -198,13 +229,15 @@ class PythonLintCommand(sublime_plugin.TextCommand):
         Check code
         """
         self.settings = sublime.load_settings('PythonLinter.sublime-settings')
-
         filename = self.view.file_name()
         code = self.view.substr(sublime.Region(0, self.view.size()))
 
-        if filename is not None and self.view.match_selector(0, 'source.python'):
-            self.error_format = self.settings.get('error_format', '{code} : {text}')
-            self.description_format = self.settings.get('description_format', 'L{line}:C{column} {text}')
+        if filename is not None and \
+           self.view.match_selector(0, 'source.python'):
+            self.error_format = self.settings.get(
+                'error_format', '{code} : {text}')
+            self.description_format = self.settings.get(
+                'description_format', 'L{line}:C{column} {text}')
 
             if self.settings.get('pep8', True):
                 self._run_pep8(filename)
@@ -223,7 +256,7 @@ class AutoPep8Command(sublime_plugin.TextCommand):
         if self.view.match_selector(0, 'source.python'):
             full_region = sublime.Region(0, self.view.size())
             input_code = self.view.substr(full_region)
-            fixed_code = fix_string(input_code)
+            fixed_code = fix_code(input_code)
             self.view.replace(edit, full_region, fixed_code)
 
 # ---- LISTENERS
