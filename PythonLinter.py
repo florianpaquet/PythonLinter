@@ -155,7 +155,7 @@ class PythonLintCommand(sublime_plugin.TextCommand):
 
         for error_list in error_lists:
             for error in error_list:
-                ignored = any(
+                ignored = error.code is not None and any(
                     error.code.startswith(ignore) for ignore in ignore_list)
                 if error.code is None or not ignored:
                     self.error_list.append(error)
